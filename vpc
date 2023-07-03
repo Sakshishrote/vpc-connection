@@ -1,0 +1,213 @@
+VPN Connection in same region
+Steps
+
+create VPC, aws pvt & Customer pub,
+create vpc
+aws-pvt-vpc :10.10.0.0/16
+customer-pub-vpc :172.25.0.0/16
+
+Create Subnet 
+aws-pvt-subnet :10.10.0.0/20
+customer-pub-subnet :172.25.0.0/20
+
+Create internet gateway for customer-pub-vpc,
+attach to customer-pub-vpc
+
+Route table 
+customer-pub-vpc
+destination n target
+edit subnet association -select-save
+ aws-pvt-vpc 
+ Select Subnet associations. and Route propogation edit
+ enable VPG-private 
+ Save
+
+crete instance 
+Public and private
+select AMI Linux 2
+Select instances 
+ edit inbound Rule 
+ All ICMP-IPV4  
+save rule
+
+Create customer gateway 
+ Name:- customer-gateway
+   IP : Public IP of pub-instance
+
+ Create virtual private gateway 
+Name:- aws-VPG-pvt
+                              
+Select VPG 
+Action 
+ Attach to aws-pvt-vpc
+
+ Site-to-Site VPN connection 
+  Create 
+Name:- aws-customer-connection
+select our created VPG.
+ select our created CG.
+ Static
+ 172.25.0.0/16
+ Create 
+
+Select VPN created 
+ Download configuration 
+ Vendor:- openswan 
+ Download & save 
+  Copy Public IP of EC2 Instance (pub-instance).
+
+Go to Ubuntu ,Take a SSH,
+
+root@DESKTOP-8QK55Q8:~# ssh -i awskey.pem ec2-user@3.6.90.166
+ [ec2-user@ip-172-25-0-169 ~]$ sudo su
+[root@ip-172-25-0-169 ec2-user]# yum install openswan -y
+Loaded plugins: extras_suggestions, langpacks, priorities, update-motd
+amzn2-core                                                                                     | 3.7 kB  00:00:00
+Resolving Dependencies
+--> Running transaction check
+---> Package libreswan.x86_64 0:3.25-4.8.amzn2.0.1 will be installed
+--> Processing Dependency: unbound-libs >= 1.6.6 for package: libreswan-3.25-4.8.amzn2.0.1.x86_64
+--> Processing Dependency: libunbound.so.2()(64bit) for package: libreswan-3.25-4.8.amzn2.0.1.x86_64
+--> Processing Dependency: libldns.so.1()(64bit) for package: libreswan-3.25-4.8.amzn2.0.1.x86_64
+--> Running transaction check
+---> Package ldns.x86_64 0:1.6.16-10.amzn2.0.3 will be installed
+---> Package unbound-libs.x86_64 0:1.7.3-15.amzn2.0.4 will be installed
+--> Finished Dependency Resolution
+
+Dependencies Resolved
+
+======================================================================================================================
+ Package                     Arch                  Version                            Repository                 Size
+======================================================================================================================
+Installing:
+ libreswan                   x86_64                3.25-4.8.amzn2.0.1                 amzn2-core                1.4 M
+Installing for dependencies:
+ ldns                        x86_64                1.6.16-10.amzn2.0.3                amzn2-core                473 k
+ unbound-libs                x86_64                1.7.3-15.amzn2.0.4                 amzn2-core                485 k
+
+Transaction Summary
+======================================================================================================================
+Install  1 Package (+2 Dependent packages)
+
+Total download size: 2.3 M
+Installed size: 7.2 M
+Downloading packages:
+(1/3): libreswan-3.25-4.8.amzn2.0.1.x86_64.rpm                                                 | 1.4 MB  00:00:00
+(2/3): ldns-1.6.16-10.amzn2.0.3.x86_64.rpm                                                     | 473 kB  00:00:00
+(3/3): unbound-libs-1.7.3-15.amzn2.0.4.x86_64.rpm                                              | 485 kB  00:00:00
+----------------------------------------------------------------------------------------------------------------------
+Total                                                                                 8.0 MB/s | 2.3 MB  00:00:00
+Running transaction check
+Running transaction test
+Transaction test succeeded
+Running transaction
+  Installing : unbound-libs-1.7.3-15.amzn2.0.4.x86_64                                                             1/3
+  Installing : ldns-1.6.16-10.amzn2.0.3.x86_64                                                                    2/3
+  Installing : libreswan-3.25-4.8.amzn2.0.1.x86_64                                                                3/3
+  Verifying  : libreswan-3.25-4.8.amzn2.0.1.x86_64                                                                1/3
+  Verifying  : ldns-1.6.16-10.amzn2.0.3.x86_64                                                                    2/3
+  Verifying  : unbound-libs-1.7.3-15.amzn2.0.4.x86_64                                                             3/3
+
+Installed:
+  libreswan.x86_64 0:3.25-4.8.amzn2.0.1
+
+Dependency Installed:
+  ldns.x86_64 0:1.6.16-10.amzn2.0.3                      unbound-libs.x86_64 0:1.7.3-15.amzn2.0.4
+
+Complete!
+[root@ip-172-25-0-169 ec2-user]# vim /etc/ipsec.conf
+[root@ip-172-25-0-169 ec2-user]# vim /etc/sysctl.conf
+[root@ip-172-25-0-169 ec2-user]# service network  restart
+Restarting network (via systemctl):                        [  OK  ]
+[root@ip-172-25-0-169 ec2-user]# vim /etc/ipsec.d/aws-vpn.conf
+[root@ip-172-25-0-169 ec2-user]# vim /etc/ipsec.d/aws-vpn.secrets
+[root@ip-172-25-0-169 ec2-user]# systemctl start ipsec
+[root@ip-172-25-0-169 ec2-user]# systemctl status ipsec
+● ipsec.service - Internet Key Exchange (IKE) Protocol Daemon for IPsec
+   Loaded: loaded (/usr/lib/systemd/system/ipsec.service; disabled; vendor preset: disabled)
+   Active: active (running) since Mon 2023-07-03 18:21:45 UTC; 22s ago
+     Docs: man:ipsec(8)
+           man:pluto(8)
+           man:ipsec.conf(5)
+  Process: 4079 ExecStopPost=/usr/sbin/ipsec --stopnflog (code=exited, status=0/SUCCESS)
+  Process: 4076 ExecStopPost=/sbin/ip xfrm state flush (code=exited, status=0/SUCCESS)
+  Process: 4074 ExecStopPost=/sbin/ip xfrm policy flush (code=exited, status=0/SUCCESS)
+  Process: 4651 ExecStartPre=/usr/sbin/ipsec --checknflog (code=exited, status=0/SUCCESS)
+  Process: 4646 ExecStartPre=/usr/sbin/ipsec --checknss (code=exited, status=0/SUCCESS)
+  Process: 4134 ExecStartPre=/usr/libexec/ipsec/_stackmanager start (code=exited, status=0/SUCCESS)
+  Process: 4132 ExecStartPre=/usr/libexec/ipsec/addconn --config /etc/ipsec.conf --checkconfig (code=exited, status=0/SUCCESS)
+ Main PID: 4670 (pluto)
+   Status: "Startup completed."
+   CGroup: /system.slice/ipsec.service
+           └─4670 /usr/libexec/ipsec/pluto --leak-detective --config /etc/ipsec.conf --nofork
+
+Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: | setup callback for interface eth0:500 fd 15Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: loading secrets from "/etc/ipsec.secrets"
+Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: loading secrets from "/etc/ipsec.d/aws-v...s"Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #1: initiating Main Mode
+Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #1: STATE_MAIN_I2: sent MI2, e...R2Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #1: STATE_MAIN_I3: sent MI3, e...R3Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #1: Peer ID is ID_IPV4_ADDR: '...9'Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #1: STATE_MAIN_I4: ISAKMP SA e...4}Jul 03 18:21:45 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #2: initiating Quick Mode PSK+...4}Jul 03 18:21:46 ip-172-25-0-169.ap-south-1.compute.internal pluto[4670]: "Tunnel1" #2: STATE_QUICK_I2: sent QI2, ...e}Hint: Some lines were ellipsized, use -l to show in full.
+[root@ip-172-25-0-169 ec2-user]# systemctl restart network
+[root@ip-172-25-0-169 ec2-user]# systemctl status network
+● network.service - LSB: Bring up/down networking
+   Loaded: loaded (/etc/rc.d/init.d/network; bad; vendor preset: disabled)
+   Active: active (running) since Mon 2023-07-03 18:23:50 UTC; 10s ago
+     Docs: man:systemd-sysv-generator(8)
+  Process: 4808 ExecStop=/etc/rc.d/init.d/network stop (code=exited, status=0/SUCCESS)
+  Process: 4990 ExecStart=/etc/rc.d/init.d/network start (code=exited, status=0/SUCCESS)
+   CGroup: /system.slice/network.service
+           ├─5177 /sbin/dhclient -q -lf /var/lib/dhclient/dhclient--eth0.lease -pf /var/run/dhclient-eth0.pid -H ip...           └─5226 /sbin/dhclient -6 -nw -lf /var/lib/dhclient/dhclient6--eth0.lease -pf /var/run/dhclient6-eth0.pid...
+Jul 03 18:23:50 ip-172-25-0-169.ap-south-1.compute.internal ec2net[5188]: [get_meta] Getting token for IMDSv2.
+Jul 03 18:23:50 ip-172-25-0-169.ap-south-1.compute.internal ec2net[5196]: [get_meta] Trying to get http://169.254...4sJul 03 18:23:50 ip-172-25-0-169.ap-south-1.compute.internal ec2net[5206]: [remove_aliases] Removing aliases of eth0
+Jul 03 18:23:50 ip-172-25-0-169.ap-south-1.compute.internal network[4990]: Determining IPv6 information for eth0....e.Jul 03 18:23:50 ip-172-25-0-169.ap-south-1.compute.internal network[4990]: [  OK  ]
+Jul 03 18:23:50 ip-172-25-0-169.ap-south-1.compute.internal systemd[1]: Started LSB: Bring up/down networking.
+Jul 03 18:23:51 ip-172-25-0-169.ap-south-1.compute.internal dhclient[5226]: XMT: Solicit on eth0, interval 1080ms.
+Jul 03 18:23:52 ip-172-25-0-169.ap-south-1.compute.internal dhclient[5226]: XMT: Solicit on eth0, interval 2230ms.
+Jul 03 18:23:54 ip-172-25-0-169.ap-south-1.compute.internal dhclient[5226]: XMT: Solicit on eth0, interval 4640ms.
+Jul 03 18:23:59 ip-172-25-0-169.ap-south-1.compute.internal dhclient[5226]: XMT: Solicit on eth0, interval 9100ms.
+Hint: Some lines were ellipsized, use -l to show in full.
+
+[root@ip-172-25-0-169 ec2-user]# ping 172.25.0.169
+PING 172.25.0.169 (172.25.0.169) 56(84) bytes of data.
+64 bytes from 172.25.0.169: icmp_seq=1 ttl=255 time=0.037 ms
+64 bytes from 172.25.0.169: icmp_seq=2 ttl=255 time=0.031 ms
+64 bytes from 172.25.0.169: icmp_seq=3 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=4 ttl=255 time=0.034 ms
+64 bytes from 172.25.0.169: icmp_seq=5 ttl=255 time=0.030 ms
+64 bytes from 172.25.0.169: icmp_seq=6 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=7 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=8 ttl=255 time=0.031 ms
+64 bytes from 172.25.0.169: icmp_seq=9 ttl=255 time=0.026 ms
+64 bytes from 172.25.0.169: icmp_seq=10 ttl=255 time=0.030 ms
+64 bytes from 172.25.0.169: icmp_seq=11 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=12 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=13 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=14 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=15 ttl=255 time=0.032 ms
+64 bytes from 172.25.0.169: icmp_seq=16 ttl=255 time=0.031 ms
+64 bytes from 172.25.0.169: icmp_seq=17 ttl=255 time=0.033 ms
+^C
+--- 172.25.0.169 ping statistics ---
+17 packets transmitted, 17 received, 0% packet loss, time 16376ms
+rtt min/avg/max/mdev = 0.026/0.031/0.037/0.007 ms
+[root@ip-172-25-0-169 ec2-user]# ping 10.10.1.169
+PING 10.10.1.169 (10.10.1.169) 56(84) bytes of data.
+64 bytes from 10.10.1.169: icmp_seq=1 ttl=254 time=0.937 ms
+64 bytes from 10.10.1.169: icmp_seq=2 ttl=254 time=0.838 ms
+64 bytes from 10.10.1.169: icmp_seq=3 ttl=254 time=0.890 ms
+64 bytes from 10.10.1.169: icmp_seq=4 ttl=254 time=4.72 ms
+64 bytes from 10.10.1.169: icmp_seq=5 ttl=254 time=0.869 ms
+64 bytes from 10.10.1.169: icmp_seq=6 ttl=254 time=0.825 ms
+64 bytes from 10.10.1.169: icmp_seq=7 ttl=254 time=0.845 ms
+64 bytes from 10.10.1.169: icmp_seq=8 ttl=254 time=1.50 ms
+64 bytes from 10.10.1.169: icmp_seq=9 ttl=254 time=1.68 ms
+64 bytes from 10.10.1.169: icmp_seq=10 ttl=254 time=0.802 ms
+64 bytes from 10.10.1.169: icmp_seq=11 ttl=254 time=0.857 ms
+64 bytes from 10.10.1.169: icmp_seq=12 ttl=254 time=0.873 ms
+64 bytes from 10.10.1.169: icmp_seq=13 ttl=254 time=0.810 ms
+64 bytes from 10.10.1.169: icmp_seq=14 ttl=254 time=1.07 ms
+64 bytes from 10.10.1.169: icmp_seq=15 ttl=254 time=0.921 ms
+64 bytes from 10.10.1.169: icmp_seq=16 ttl=254 time=0.941 ms
+^C
+--- 10.10.1.169 ping statistics ---
+16 packets transmitted, 16 received, 0% packet loss, time 15153ms
+rtt min/avg/max/mdev = 0.802/1.212/4.724/0.939 ms
+
+Ping Successfully.
